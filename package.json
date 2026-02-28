@@ -4,7 +4,12 @@
   "scripts": {
     "start": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "questions:daily": "node scripts/generate-daily-questions.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.5.0",
+    "openai": "^5.12.2"
   },
   "devDependencies": {
     "vite": "^6.2.2"
