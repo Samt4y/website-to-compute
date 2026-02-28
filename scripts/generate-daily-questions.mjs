@@ -3,7 +3,7 @@ import { getFirestore } from "firebase-admin/firestore";
 
 const REQUIRED_ENV = ["FIREBASE_SERVICE_ACCOUNT_KEY"];
 const QUESTIONS_PER_DAY = 5;
-const TRIVIA_ENDPOINT = `https://opentdb.com/api.php?amount=${QUESTIONS_PER_DAY}&type=multiple`;
+const TRIVIA_ENDPOINT = `https://opentdb.com/api.php?amount=${QUESTIONS_PER_DAY}&type=multiple&category=11&difficulty=easy`;
 
 for (const envName of REQUIRED_ENV) {
   if (!process.env[envName]) {
