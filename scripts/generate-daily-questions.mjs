@@ -1,9 +1,9 @@
-import OpenAI from "openai";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 
-const REQUIRED_ENV = ["OPENAI_API_KEY", "FIREBASE_SERVICE_ACCOUNT_KEY"];
-const MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+const REQUIRED_ENV = ["FIREBASE_SERVICE_ACCOUNT_KEY"];
+const QUESTIONS_PER_DAY = 5;
+const TRIVIA_ENDPOINT = `https://opentdb.com/api.php?amount=${QUESTIONS_PER_DAY}&type=multiple`;
 
 for (const envName of REQUIRED_ENV) {
   if (!process.env[envName]) {
@@ -50,38 +50,54 @@ function normalizeQuestion(question, index) {
   return { text, answers, correctIndex, active: true };
 }
 
-async function generateQuestions() {
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+function decodeHtmlEntities(input) {
+  return String(input)
+    .replace(/&quot;/g, "\"")
+    .replace(/&#039;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&eacute;/g, "e");
+}
 
-  const completion = await client.chat.completions.create({
-    model: MODEL,
-    temperature: 0.9,
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content:
-          "You create high-quality multiple-choice quiz questions. Keep content safe for general audiences. Output JSON only."
-      },
-      {
-        role: "user",
-        content:
-          "Generate exactly 5 new quiz questions for a general knowledge web quiz. Return JSON with this shape: {\"questions\":[{\"text\":string,\"answers\":[string,string,string,string],\"correctIndex\":number}]}. Rules: exactly 4 answer options per question, one correct answer, no trick wording, no duplicate questions, and vary topics."
-      }
-    ]
+function shuffle(list) {
+  const copy = [...list];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+async function generateQuestions() {
+  const response = await fetch(TRIVIA_ENDPOINT);
+  if (!response.ok) {
+    throw new Error(`Trivia API failed with status ${response.status}`);
+  }
+
+  const payload = await response.json();
+  if (payload.response_code !== 0 || !Array.isArray(payload.results)) {
+    throw new Error(`Trivia API returned invalid response code: ${payload.response_code}`);
+  }
+
+  if (payload.results.length !== QUESTIONS_PER_DAY) {
+    throw new Error(`Trivia API did not return exactly ${QUESTIONS_PER_DAY} questions`);
+  }
+
+  const mapped = payload.results.map((item) => {
+    const correctAnswer = decodeHtmlEntities(item.correct_answer);
+    const wrongAnswers = item.incorrect_answers.map(decodeHtmlEntities);
+    const answers = shuffle([correctAnswer, ...wrongAnswers]);
+    const correctIndex = answers.findIndex((answer) => answer === correctAnswer);
+
+    return {
+      text: decodeHtmlEntities(item.question),
+      answers,
+      correctIndex
+    };
   });
 
-  const content = completion.choices?.[0]?.message?.content;
-  if (!content) {
-    throw new Error("Model returned empty content");
-  }
-
-  const parsed = JSON.parse(content);
-  if (!Array.isArray(parsed.questions) || parsed.questions.length !== 5) {
-    throw new Error("Model did not return exactly 5 questions");
-  }
-
-  return parsed.questions.map(normalizeQuestion);
+  return mapped.map(normalizeQuestion);
 }
 
 async function replaceQuestionsCollection(questions) {
@@ -109,7 +125,7 @@ async function replaceQuestionsCollection(questions) {
     batch.set(ref, {
       ...question,
       generatedOn,
-      source: "openai"
+      source: "opentdb"
     });
   });
 
@@ -117,7 +133,7 @@ async function replaceQuestionsCollection(questions) {
 }
 
 async function main() {
-  console.log(`Generating daily questions with model ${MODEL}...`);
+  console.log("Generating daily questions from Open Trivia DB...");
   const questions = await generateQuestions();
   await replaceQuestionsCollection(questions);
   console.log("Successfully replaced Firestore questions collection with 5 new questions.");

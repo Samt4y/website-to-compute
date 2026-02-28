@@ -137,9 +137,9 @@ service cloud.firestore {
 }
 ```
 
-## Daily AI Questions Automation
+## Daily Questions Automation
 
-This repo now includes a scheduled GitHub Action that generates 5 new questions every day and replaces the Firestore `questions` collection.
+This repo now includes a scheduled GitHub Action that fetches 5 new multiple-choice questions every day from [Open Trivia DB](https://opentdb.com/) and replaces the Firestore `questions` collection.
 
 File: `.github/workflows/daily-questions.yml`
 
@@ -150,10 +150,8 @@ File: `.github/workflows/daily-questions.yml`
 
 Add these repository secrets in GitHub: `Settings -> Secrets and variables -> Actions`.
 
-- `OPENAI_API_KEY`: your OpenAI API key
 - `FIREBASE_SERVICE_ACCOUNT_KEY`: full JSON for a Firebase service account (single-line JSON)
 - `FIREBASE_PROJECT_ID`: your Firebase project id (e.g. `quizapp-a184b`)
-- `OPENAI_MODEL` (optional): override model (default is `gpt-4.1-mini`)
 
 ### Firebase service account setup
 
@@ -170,7 +168,7 @@ Add these repository secrets in GitHub: `Settings -> Secrets and variables -> Ac
   - `correctIndex`
   - `active: true`
   - `generatedOn` (UTC date string)
-  - `source: "openai"`
+  - `source: "opentdb"`
 
 ## Deploy
 

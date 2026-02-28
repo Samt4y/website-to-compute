@@ -1,4 +1,4 @@
-name: Daily AI Questions
+name: Daily Questions Refresh
 
 on:
   schedule:
@@ -23,7 +23,5 @@ jobs:
       - name: Generate and replace daily questions
         run: npm run questions:daily
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
           FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
